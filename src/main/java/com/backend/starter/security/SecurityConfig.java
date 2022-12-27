@@ -4,17 +4,14 @@ package com.backend.starter.security;
 import com.backend.starter.security.jwt.AuthenticationTokenFilter;
 import com.backend.starter.security.jwt.JwtAuthEntryPoint;
 import com.backend.starter.serviceImpl.UserDetailsServiceImpl;
+import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -28,47 +25,27 @@ import java.util.List;
 
 @EnableWebSecurity
 @Configuration
-public class SecurityConfig{
-    @Autowired
-    private UserDetailsServiceImpl userDetailsService;
-    @Autowired
-    private BCryptPasswordEncoder passwordEncoder;
-    @Autowired
-    private AuthenticationTokenFilter authenticationTokenFilter;
-    @Autowired
-    private JwtAuthEntryPoint jwtAuthEntryPoint;
+@AllArgsConstructor
+public class SecurityConfig {
+    private final UserDetailsServiceImpl userDetailsService;
+    private final BCryptPasswordEncoder passwordEncoder;
+    private final AuthenticationTokenFilter authenticationTokenFilter;
+    private final JwtAuthEntryPoint jwtAuthEntryPoint;
 
+    private static final String[] ALLOWED_URL_PATHS = {"/api/v1/sign-in", "/api/v1/sign-up"};
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-
-
         http.cors().and().csrf().disable()
                 .exceptionHandling().authenticationEntryPoint(jwtAuthEntryPoint).and()
                 .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
-
-        http.authorizeHttpRequests().requestMatchers("/api/v1/sign-in").permitAll().anyRequest().authenticated();
-
-
-
-                http.addFilterBefore(authenticationTokenFilter, UsernamePasswordAuthenticationFilter.class);
-
+        http.authorizeHttpRequests().requestMatchers(ALLOWED_URL_PATHS).permitAll().anyRequest().authenticated();
+        http.addFilterBefore(authenticationTokenFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 
-//    @Bean
-//    public WebSecurityCustomizer webSecurityCustomizer() {
-//        return (web) -> web.ignoring().requestMatchers( "/api/v1/sign-in",
-//                "/api/v1/sign-up",
-//                "/api/v1/verify/account",
-//                "/api/v1/resend",
-//                "/v2/api-docs");
-//    }
-
-
     @Bean
-    public AuthenticationManager authenticationManager(HttpSecurity http)
-            throws Exception {
+    public AuthenticationManager authenticationManager(HttpSecurity http) throws Exception {
         return http.getSharedObject(AuthenticationManagerBuilder.class)
                 .userDetailsService(userDetailsService)
                 .passwordEncoder(passwordEncoder)
