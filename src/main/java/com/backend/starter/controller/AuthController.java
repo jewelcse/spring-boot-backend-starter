@@ -1,10 +1,12 @@
 package com.backend.starter.controller;
 
-import com.backend.starter.dto.request.LoginRequest;
-import com.backend.starter.dto.request.RegisterRequest;
-import com.backend.starter.dto.request.UserAddRequest;
+import com.backend.starter.dto.request.*;
 import com.backend.starter.dto.response.LoginResponse;
+import com.backend.starter.dto.response.MessageResponse;
+import com.backend.starter.dto.response.UserDetails;
+import com.backend.starter.dto.response.UserProfile;
 import com.backend.starter.entity.User;
+import com.backend.starter.exception.UserNotFoundException;
 import com.backend.starter.security.jwt.JwtUtil;
 import com.backend.starter.service.UserService;
 import com.backend.starter.serviceImpl.UserDetailsImpl;
@@ -21,10 +23,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 
-import javax.management.relation.RoleNotFoundException;
-import java.io.UnsupportedEncodingException;
 import java.security.Principal;
-import java.sql.Timestamp;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -54,7 +53,7 @@ public class AuthController {
     }
 
     @PostMapping("/sign-up")
-    public ResponseEntity<?> signup(@Valid @RequestBody RegisterRequest request) throws RoleNotFoundException, MessagingException, UnsupportedEncodingException {
+    public ResponseEntity<?> signup(@Valid @RequestBody RegisterRequest request){
 
         if (userService.existsByUsername(request.getUsername())) {
             return ResponseEntity
@@ -71,7 +70,7 @@ public class AuthController {
     }
 
     @PostMapping("/users")
-    public ResponseEntity<?> addUser(@Valid @RequestBody UserAddRequest request) throws RoleNotFoundException, MessagingException, UnsupportedEncodingException {
+    public ResponseEntity<?> addUser(@Valid @RequestBody UserAddRequest request){
         if (userService.existsByEmail(request.getEmail())) {
             return ResponseEntity
                     .badRequest()
@@ -82,22 +81,22 @@ public class AuthController {
     }
 
     @PostMapping("/users/password-reset")
-    public ResponseEntity<?> resetPassword(@RequestBody PasswordResetRequest request, Principal principal) throws UserNotFoundException {
+    public ResponseEntity<?> resetPassword(@RequestBody PasswordResetRequest request, Principal principal){
         User user = userService.findByUsername(principal.getName())
                 .orElseThrow(() -> new UserNotFoundException("USER NOT FOUND"));
 
-        if (!encoder.matches(request.getOld_password(), user.getPassword())) {
+        if (!encoder.matches(request.getOldPassword(), user.getPassword())) {
             return ResponseEntity
                     .badRequest()
                     .body("INCORRECT THE CURRENT PASSWORD!");
         }
 
-        if (!request.getNew_password().equals(request.getConfirm_password())) {
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
             return ResponseEntity
                     .badRequest()
                     .body("CONFIRM PASSWORD DOESN'T MATCH WITH THE NEW PASSWORD!");
         }
-        user.setPassword(encoder.encode(request.getNew_password()));
+        user.setPassword(encoder.encode(request.getNewPassword()));
         userService.resetPassword(user);
         return ResponseEntity.ok("PASSWORD RESET SUCCESSFUL!");
     }
@@ -113,7 +112,7 @@ public class AuthController {
     }
 
     @GetMapping("/users/{id}")
-    public ResponseEntity<UserDetails> getUser(@PathVariable("id") long userId) throws UserNotFoundException {
+    public ResponseEntity<UserDetails> getUser(@PathVariable("id") long userId){
         User user = userService.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException("USER NOT FOUND!"));
         UserDetails details = UserDetails
@@ -128,7 +127,7 @@ public class AuthController {
     }
 
     @GetMapping("/users/profile/{id}")
-    public ResponseEntity<UserProfile> getUserProfile(@PathVariable("id") long userId) throws UserNotFoundException {
+    public ResponseEntity<UserProfile> getUserProfile(@PathVariable("id") long userId){
         User user = userService.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException("USER NOT FOUND!"));
         UserProfile profile = UserProfile
@@ -174,54 +173,4 @@ public class AuthController {
         userService.activateDeactivateUserAccount(user);
         return ResponseEntity.ok(new MessageResponse("UPDATED!"));
     }
-
-    @GetMapping("/verify/account")
-    public ResponseEntity<MessageResponse> verifyAccount(@RequestParam String code) {
-        UserVerificationCenter userVerificationCenter = userVerificationCenterRepository
-                .findByVerificationCode(code);
-        if (userVerificationCenter == null) {
-            return ResponseEntity
-                    .badRequest()
-                    .body(new MessageResponse("VERIFICATION CODE NOT FOUND!"));
-        }
-        if (userVerificationCenter.getUser().isEnabled()) {
-            return ResponseEntity
-                    .badRequest()
-                    .body(new MessageResponse("ACCOUNT ALREADY VERIFIED!"));
-        }
-        Timestamp currentTimeMillis = new Timestamp(System.currentTimeMillis());
-        if (userVerificationCenter.getExpiryDate().before(currentTimeMillis)) {
-            return ResponseEntity
-                    .badRequest()
-                    .body(new MessageResponse("VERIFICATION CODE EXPIRED!"));
-        }
-        userService.verifyAccount(userVerificationCenter);
-        return ResponseEntity.ok(new MessageResponse("ACCOUNT VERIFICATION SUCCESSFUL, PLEASE LOGIN!"));
-    }
-
-    @PostMapping("/resend")
-    public ResponseEntity<MessageResponse> resendCode(@RequestBody ResendCodeRequest request) throws UserNotFoundException, MessagingException, UnsupportedEncodingException {
-
-        User user = userService.findByEmail(request.getEmail())
-                .orElseThrow(() -> new UserNotFoundException("EMAIL NOT FOUND!"));
-
-        if (user.isEnabled()) {
-            return ResponseEntity
-                    .badRequest()
-                    .body(new MessageResponse("ACCOUNT ALREADY VERIFIED!"));
-        }
-        UserVerificationCenter userVerificationCenter = userVerificationCenterRepository.findByUser(user);
-        if (userVerificationCenter.getMaxLimit() <= 3 && userVerificationCenter.getMaxLimit() > 0) {
-            userService.resendVerificationCode(userVerificationCenter, user);
-        } else {
-            user.setNonLocked(false);
-            user.setEnabled(false);
-            userService.lockedUserAccount(user);
-            return ResponseEntity
-                    .badRequest()
-                    .body(new MessageResponse("ACCOUNT LOCKED!"));
-        }
-        return ResponseEntity.ok(new MessageResponse("CODE SENT TO YOUR MAIL!"));
-    }
-
 }
