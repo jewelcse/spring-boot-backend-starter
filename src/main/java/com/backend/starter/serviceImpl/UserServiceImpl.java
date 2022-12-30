@@ -1,24 +1,32 @@
 package com.backend.starter.serviceImpl;
 
-import com.backend.starter.dto.request.RegisterRequest;
-import com.backend.starter.dto.request.UserAddRequest;
-import com.backend.starter.dto.request.UserUpdateRequest;
-import com.backend.starter.dto.response.RegisterResponse;
-import com.backend.starter.dto.response.UserAddResponse;
+import com.backend.starter.dto.request.*;
+import com.backend.starter.dto.response.*;
 import com.backend.starter.entity.Profile;
 import com.backend.starter.entity.Role;
 import com.backend.starter.entity.RoleType;
 import com.backend.starter.entity.User;
+import com.backend.starter.exception.LoginException;
 import com.backend.starter.exception.RoleNotFoundException;
+import com.backend.starter.exception.UserAlreadyExistsException;
+import com.backend.starter.exception.UserNotFoundException;
+import com.backend.starter.mapper.UserMapper;
 import com.backend.starter.repository.RoleRepository;
 import com.backend.starter.repository.UserRepository;
+import com.backend.starter.security.jwt.JwtUtil;
 import com.backend.starter.service.UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.Principal;
 import java.util.*;
 
 import static com.backend.starter.util.UtilMethods.generateRandomString;
@@ -27,31 +35,25 @@ import static com.backend.starter.util.UtilMethods.generateRandomString;
 @Service
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
+    private final UserMapper userMapper;
 
     private final RoleRepository roleRepository;
 
     private final BCryptPasswordEncoder encoder;
 
-    @Override
-    public Optional<User> findByUsername(String username) {
-        return userRepository.findByUsername(username);
-    }
+    private final AuthenticationManager authenticationManager;
 
-
-    @Override
-    public boolean existsByUsername(String username) {
-        return userRepository.existsByUsername(username);
-
-    }
-
-    @Override
-    public boolean existsByEmail(String email) {
-        return userRepository.existsByEmail(email);
-    }
+    private final JwtUtil jwtUtil;
 
     @Transactional
     @Override
     public RegisterResponse save(RegisterRequest request) {
+        if (userRepository.existsByEmail(request.getEmail())){
+            throw new UserAlreadyExistsException("Already have the email!");
+        }
+        if (userRepository.existsByUsername(request.getUsername())){
+            throw new UserAlreadyExistsException("Already have the username!");
+        }
         //user
         User user = new User();
         user.setUsername(request.getUsername());
@@ -79,7 +81,11 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public UserAddResponse save(UserAddRequest request) {
+    public AddUserResponse add(AddUserRequest request) {
+
+        if (userRepository.existsByEmail(request.getEmail())){
+            throw new UserAlreadyExistsException("Already have this email!");
+        }
         //generate random username and password
         String randomUserPassword = generateRandomString(8);
         String randomUsername = request.getFirstName().toLowerCase() + "@" + generateRandomString(4);
@@ -98,7 +104,7 @@ public class UserServiceImpl implements UserService {
 
         user.setProfile(profile);
         userRepository.save(user);
-        return UserAddResponse
+        return AddUserResponse
                 .builder()
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
@@ -109,52 +115,135 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public List<User> getAllUser() {
-        return userRepository.findAll();
+    public LoginResponse login(LoginRequest request) {
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword()));
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        String jwt = jwtUtil.generateToken(authentication);
+        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+        List<String> roles = userDetails.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority).toList();
+
+        return LoginResponse.builder()
+                .username(userDetails.getUsername())
+                .email(userDetails.getEmail())
+                .token(jwt)
+                .type("Bearer")
+                .role(roles.get(0))
+                .build();
+
     }
+
+
+    @Override
+    public List<UserDetails> getAllUser() {
+        return userMapper.toListOfUserDetails(userRepository.findAll());
+    }
+
+    @Override
+    public UserDetails getUser(long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException("USER NOT FOUND!"));
+        return userMapper.toUserDetails(user);
+    }
+
+
+    @Override
+    public UserProfile getUserProfile(long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException("USER NOT FOUND!"));
+        return UserProfile
+                .builder()
+                .email(user.getEmail())
+                .username(user.getUsername())
+                .isEnabled(user.isEnabled())
+                .isNonLocked(user.isNonLocked())
+                .firstName(user.getProfile().getFirstName())
+                .lastName(user.getProfile().getLastName())
+                .phoneNumber(user.getProfile().getPhoneNumber())
+                .street(user.getProfile().getStreet())
+                .state(user.getProfile().getState())
+                .zipCode(user.getProfile().getZipCode())
+                .gender(user.getProfile().getGender())
+                .city(user.getProfile().getCity())
+                .country(user.getProfile().getCountry())
+                .dateOfBirth(user.getProfile().getDateOfBirth())
+                .address1(user.getProfile().getAddress1())
+                .address2(user.getProfile().getAddress2())
+                .role(getRole(user.getRoles()))
+                .build();
+    }
+
 
     @Override
     public void deleteUserById(Long id) {
+        boolean doesExists = userRepository.existsById(id);
+        if (!doesExists) {
+            throw new UserNotFoundException("NOT FOUND!");
+        }
         userRepository.deleteById(id);
+
     }
 
     @Transactional
     @Override
-    public User updateUser(UserUpdateRequest userUpdateRequest) {
-        User user = userRepository.findById(userUpdateRequest.getId())
-                .orElseThrow(() -> new UsernameNotFoundException("user not found for id: " + userUpdateRequest.getId()));
-        user.setId(user.getId());
-        user.setEmail(userUpdateRequest.getEmail());
-        Set<Role> roles = new HashSet<>();
-        Role role = roleRepository.findByName(RoleType.valueOf(userUpdateRequest.getRole()))
-                .orElseThrow(() -> new RuntimeException("Role not found for " + userUpdateRequest.getRole()));
-        roles.add(role);
-        user.setRoles(roles);
-        return userRepository.save(user);
-    }
+    public UpdateProfileResponse updateUser(UpdateProfileRequest request) {
+        User user = userRepository.findById(request.getUserId())
+                .orElseThrow(() -> new UsernameNotFoundException("USER NOT FOUND!"));
 
-    @Override
-    public Optional<User> existsByUserId(long trainerAccountId) {
-        return userRepository.findById(trainerAccountId);
+        Profile profile = user.getProfile();
+        profile.setAddress1(request.getAddress1());
+        profile.setAddress2(request.getAddress2());
+        profile.setStreet(request.getStreet());
+        profile.setCity(request.getCity());
+        profile.setCountry(request.getCountry());
+        profile.setState(request.getState());
+        profile.setDateOfBirth(request.getDateOfBirth());
+        profile.setFirstName(request.getFirstName());
+        profile.setLastName(request.getLastName());
+        profile.setGender(profile.getGender());
+        profile.setZipCode(request.getZipCode());
+        profile.setPhoneNumber(request.getPhoneNumber());
+
+        userRepository.save(user);
+        return userMapper.toUserProfile(profile);
     }
 
 
     @Transactional
     @Override
-    public void activateDeactivateUserAccount(User user) {
+    public boolean activateDeactivateUserAccount(long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException("USER NOT FOUND!"));
         user.setId(user.getId());
         user.setNonLocked(!user.isNonLocked());
+        return userRepository.save(user).isNonLocked();
+    }
+
+    @Override
+    public boolean enableDisableUserAccount(long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException("USER NOT FOUND!"));
+        user.setId(user.getId());
+        user.setEnabled(!user.isEnabled());
+        return userRepository.save(user).isEnabled();
+    }
+
+
+    @Override
+    public void resetPassword(PasswordResetRequest request, Principal principal) {
+        User user = userRepository.findByUsername(principal.getName())
+                .orElseThrow(() -> new UserNotFoundException("USER NOT FOUND"));
+
+        if (!encoder.matches(request.getOldPassword(), user.getPassword())) {
+            throw new LoginException("INCORRECT THE CURRENT PASSWORD!");
+        }
+
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new LoginException("CONFIRM PASSWORD DOESN'T MATCH WITH THE NEW PASSWORD!");
+        }
+        user.setPassword(encoder.encode(request.getNewPassword()));
         userRepository.save(user);
-    }
-
-    @Override
-    public Optional<User> findById(long userId) {
-        return userRepository.findById(userId);
-    }
-
-    @Override
-    public User resetPassword(User user) {
-        return userRepository.save(user);
     }
 
     private Set<Role> checkRoles(String stringRole) {
@@ -179,6 +268,15 @@ public class UserServiceImpl implements UserService {
         }
         return roles;
     }
+
+    private String getRole(Set<Role> roles){
+        Optional<Role> role = roles.stream().findFirst();
+        if ((role.isEmpty())){
+            throw new RoleNotFoundException("NOT FOUND!");
+        }
+        return role.get().getName().toString();
+    }
+
 
 
 }

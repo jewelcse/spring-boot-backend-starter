@@ -1,3 +1,4 @@
+
 package com.backend.starter.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
@@ -6,13 +7,16 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+
 @Setter
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
-public class UserUpdateRequest {
+public class AddUserRequest {
     @NotBlank
-    private Long id;
+    private String firstName;
+    @NotBlank
+    private String lastName;
     @NotBlank
     private String email;
     @NotBlank

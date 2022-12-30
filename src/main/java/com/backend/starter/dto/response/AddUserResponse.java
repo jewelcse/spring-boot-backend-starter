@@ -8,7 +8,7 @@ import lombok.*;
 @Getter
 @Setter
 @Builder
-public class UserAddResponse {
+public class AddUserResponse {
 
     private String firstName;
     private String lastName;

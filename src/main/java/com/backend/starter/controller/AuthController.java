@@ -1,176 +1,88 @@
 package com.backend.starter.controller;
 
 import com.backend.starter.dto.request.*;
-import com.backend.starter.dto.response.LoginResponse;
-import com.backend.starter.dto.response.MessageResponse;
-import com.backend.starter.dto.response.UserDetails;
-import com.backend.starter.dto.response.UserProfile;
-import com.backend.starter.entity.User;
+import com.backend.starter.dto.response.*;
 import com.backend.starter.exception.UserNotFoundException;
-import com.backend.starter.security.jwt.JwtUtil;
 import com.backend.starter.service.UserService;
-import com.backend.starter.serviceImpl.UserDetailsImpl;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 
 import java.security.Principal;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1")
+@RequiredArgsConstructor
 public class AuthController {
-    @Autowired
-    private UserService userService;
-    @Autowired
-    private BCryptPasswordEncoder encoder;
-    @Autowired
-    private AuthenticationManager authenticationManager;
-    @Autowired
-    private JwtUtil jwtUtil;
+
+    private final UserService userService;
 
     @PostMapping("/sign-in")
-    public ResponseEntity<LoginResponse> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        String jwt = jwtUtil.generateToken(authentication);
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-        List<String> roles = userDetails.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(new LoginResponse(jwt, userDetails.getUsername(), userDetails.getEmail(), roles));
+    public ResponseEntity<LoginResponse> signin(@Valid @RequestBody LoginRequest loginRequest) {
+        return ResponseEntity.ok(userService.login(loginRequest));
     }
 
     @PostMapping("/sign-up")
-    public ResponseEntity<?> signup(@Valid @RequestBody RegisterRequest request){
-
-        if (userService.existsByUsername(request.getUsername())) {
-            return ResponseEntity
-                    .badRequest()
-                    .body(new MessageResponse(request.getUsername() + " ALREADY EXISTS!"));
-        }
-        if (userService.existsByEmail(request.getEmail())) {
-            return ResponseEntity
-                    .badRequest()
-                    .body(new MessageResponse(request.getEmail() + " IS ALREADY IN USE!"));
-        }
-
+    public ResponseEntity<RegisterResponse> signup(@Valid @RequestBody RegisterRequest request) {
         return new ResponseEntity<>(userService.save(request), HttpStatus.CREATED);
     }
 
     @PostMapping("/users")
-    public ResponseEntity<?> addUser(@Valid @RequestBody UserAddRequest request){
-        if (userService.existsByEmail(request.getEmail())) {
-            return ResponseEntity
-                    .badRequest()
-                    .body(new MessageResponse(request.getEmail() + " IS ALREADY IN USE!"));
-        }
-        userService.save(request);
-        return ResponseEntity.ok(new MessageResponse("USER ADD SUCCESSFUL!"));
+    public ResponseEntity<AddUserResponse> addUser(@Valid @RequestBody AddUserRequest request) {
+        return ResponseEntity.ok(userService.add(request));
     }
 
     @PostMapping("/users/password-reset")
-    public ResponseEntity<?> resetPassword(@RequestBody PasswordResetRequest request, Principal principal){
-        User user = userService.findByUsername(principal.getName())
-                .orElseThrow(() -> new UserNotFoundException("USER NOT FOUND"));
-
-        if (!encoder.matches(request.getOldPassword(), user.getPassword())) {
-            return ResponseEntity
-                    .badRequest()
-                    .body("INCORRECT THE CURRENT PASSWORD!");
-        }
-
-        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
-            return ResponseEntity
-                    .badRequest()
-                    .body("CONFIRM PASSWORD DOESN'T MATCH WITH THE NEW PASSWORD!");
-        }
-        user.setPassword(encoder.encode(request.getNewPassword()));
-        userService.resetPassword(user);
-        return ResponseEntity.ok("PASSWORD RESET SUCCESSFUL!");
+    public ResponseEntity<?> resetPassword(@RequestBody PasswordResetRequest request, Principal principal) {
+        userService.resetPassword(request,principal);
+        return ResponseEntity.ok("password reset successful!");
     }
 
     @GetMapping("/users")
-    public ResponseEntity<List<User>> getUsers() {
+    public ResponseEntity<List<UserDetails>> getUsers() {
         return ResponseEntity.ok(userService.getAllUser());
     }
 
-    @PutMapping("/users")
-    public ResponseEntity<?> updateUser(@RequestBody UserUpdateRequest userUpdateRequest) {
-        return ResponseEntity.ok(userService.updateUser(userUpdateRequest));
+    @PutMapping("/users/profile")
+    public ResponseEntity<UpdateProfileResponse> updateProfile(@RequestBody UpdateProfileRequest request) {
+        return ResponseEntity.ok(userService.updateUser(request));
     }
 
     @GetMapping("/users/{id}")
-    public ResponseEntity<UserDetails> getUser(@PathVariable("id") long userId){
-        User user = userService.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException("USER NOT FOUND!"));
-        UserDetails details = UserDetails
-                .builder()
-                .username(user.getUsername())
-                .email(user.getEmail())
-                .isNonLocked(user.isNonLocked())
-                .isEnabled(user.isEnabled())
-                .roles(user.getRoles())
-                .build();
-        return ResponseEntity.ok(details);
+    public ResponseEntity<UserDetails> getUser(@PathVariable("id") long userId) {
+        return ResponseEntity.ok(userService.getUser(userId));
     }
 
     @GetMapping("/users/profile/{id}")
-    public ResponseEntity<UserProfile> getUserProfile(@PathVariable("id") long userId){
-        User user = userService.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException("USER NOT FOUND!"));
-        UserProfile profile = UserProfile
-                .builder()
-                .email(user.getEmail())
-                .username(user.getUsername())
-                .isEnabled(user.isEnabled())
-                .isNonLocked(user.isNonLocked())
-                .firstName(user.getProfile().getFirstName())
-                .lastName(user.getProfile().getLastName())
-                .phoneNumber(user.getProfile().getPhoneNumber())
-                .street(user.getProfile().getStreet())
-                .state(user.getProfile().getState())
-                .zipCode(user.getProfile().getZipCode())
-                .gender(user.getProfile().getGender())
-                .city(user.getProfile().getCity())
-                .country(user.getProfile().getCountry())
-                .dateOfBirth(user.getProfile().getDateOfBirth())
-                .address1(user.getProfile().getAddress1())
-                .address2(user.getProfile().getAddress2())
-                .roles(user.getRoles())
-                .build();
-
-        return new ResponseEntity<>(profile, HttpStatus.OK);
+    public ResponseEntity<UserProfile> getUserProfile(@PathVariable("id") long userId) {
+        return new ResponseEntity<>(userService.getUserProfile(userId), HttpStatus.OK);
     }
 
-
     @DeleteMapping("/users/{id}")
-    public ResponseEntity<MessageResponse> deleteUser(@PathVariable("id") long userId) throws UserNotFoundException {
-        User user = userService
-                .existsByUserId(userId)
-                .orElseThrow(() -> new UserNotFoundException("USER NOT FOUND!"));
-        userService.deleteUserById(user.getId());
+    public ResponseEntity<MessageResponse> deleteUser(@PathVariable("id") long id){
+        userService.deleteUserById(id);
         return ResponseEntity.ok(new MessageResponse("USER REMOVED SUCCESSFUL!"));
     }
 
+    @PostMapping("/activate-deactivate/user/account")
+    public ResponseEntity<MessageResponse> activateDeActivateUserAccount(@RequestParam long id){
+        if (userService.activateDeactivateUserAccount(id)) {
+            return ResponseEntity.ok(new MessageResponse("USER ACCOUNT ACTIVATED!"));
+        } else {
+            return ResponseEntity.ok(new MessageResponse("USER ACCOUNT DEACTIVATED!"));
+        }
+    }
 
-    @GetMapping("/activate-deactivate/user/account")
-    public ResponseEntity<MessageResponse> activateDeActivateUserAccount(@RequestParam long id) throws UserNotFoundException {
-        User user = userService
-                .existsByUserId(id)
-                .orElseThrow(() -> new UserNotFoundException("USER NOT FOUND!"));
-        userService.activateDeactivateUserAccount(user);
-        return ResponseEntity.ok(new MessageResponse("UPDATED!"));
+    @PostMapping("/enable-disable/user/account")
+    public ResponseEntity<MessageResponse> enableDisableUserAccount(@RequestParam long id){
+        if (userService.enableDisableUserAccount(id)) {
+            return ResponseEntity.ok(new MessageResponse("USER ACCOUNT ENABLED!!"));
+        } else {
+            return ResponseEntity.ok(new MessageResponse("USER ACCOUNT DISABLED!"));
+        }
     }
 }

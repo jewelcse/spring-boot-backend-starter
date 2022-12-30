@@ -26,12 +26,16 @@ public class JwtUtil {
         Map<String,Object> claims = new HashMap<String,Object>();
         claims.put("roles",userDetails.getAuthorities());
 
+        long currentTime = System.currentTimeMillis();
+        Date expirationDate = new Date(currentTime + TOKEN_EXPIRATION_TIME * 1000);
+
+
         return Jwts
                 .builder()
                 .setSubject(userDetails.getUsername())
                 .addClaims(claims)
                 .setIssuedAt(new Date())
-                .setExpiration(new Date((new Date()).getTime() + TOKEN_EXPIRATION_TIME))
+                .setExpiration(expirationDate)
                 .signWith(SignatureAlgorithm.HS512, APPLICATION_SECRET_KEY)
                 .compact();
 
