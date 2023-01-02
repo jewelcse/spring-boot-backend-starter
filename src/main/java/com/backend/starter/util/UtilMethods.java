@@ -19,11 +19,4 @@ public class UtilMethods {
         }
         return sb.toString();
     }
-
-
-    public static Timestamp calculateExpiryDate(int expiryTimeInMinutes){
-        Calendar cal = Calendar.getInstance();
-        cal.add(Calendar.MINUTE, expiryTimeInMinutes);
-        return new Timestamp(cal.getTime().getTime());
-    }
 }

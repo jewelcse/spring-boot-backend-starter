@@ -22,12 +22,12 @@ public class AuthController {
     private final UserService userService;
 
     @PostMapping("/sign-in")
-    public ResponseEntity<LoginResponse> signin(@Valid @RequestBody LoginRequest loginRequest) {
+    public ResponseEntity<LoginResponse> signIn(@Valid @RequestBody LoginRequest loginRequest) {
         return ResponseEntity.ok(userService.login(loginRequest));
     }
 
     @PostMapping("/sign-up")
-    public ResponseEntity<RegisterResponse> signup(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<RegisterResponse> signUp(@Valid @RequestBody RegisterRequest request) {
         return new ResponseEntity<>(userService.save(request), HttpStatus.CREATED);
     }
 
@@ -39,7 +39,7 @@ public class AuthController {
     @PostMapping("/users/password-reset")
     public ResponseEntity<?> resetPassword(@RequestBody PasswordResetRequest request, Principal principal) {
         userService.resetPassword(request,principal);
-        return ResponseEntity.ok("password reset successful!");
+        return ResponseEntity.ok("Password reset successful!");
     }
 
     @GetMapping("/users")
@@ -65,15 +65,15 @@ public class AuthController {
     @DeleteMapping("/users/{id}")
     public ResponseEntity<MessageResponse> deleteUser(@PathVariable("id") long id){
         userService.deleteUserById(id);
-        return ResponseEntity.ok(new MessageResponse("USER REMOVED SUCCESSFUL!"));
+        return ResponseEntity.ok(new MessageResponse("user remove successful!"));
     }
 
     @PostMapping("/activate-deactivate/user/account")
     public ResponseEntity<MessageResponse> activateDeActivateUserAccount(@RequestParam long id){
         if (userService.activateDeactivateUserAccount(id)) {
-            return ResponseEntity.ok(new MessageResponse("USER ACCOUNT ACTIVATED!"));
+            return ResponseEntity.ok(new MessageResponse("user account activated!"));
         } else {
-            return ResponseEntity.ok(new MessageResponse("USER ACCOUNT DEACTIVATED!"));
+            return ResponseEntity.ok(new MessageResponse("user account deactivated!"));
         }
     }
 
