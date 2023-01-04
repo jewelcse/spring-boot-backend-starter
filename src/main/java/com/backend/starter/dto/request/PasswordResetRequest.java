@@ -1,15 +1,13 @@
 package com.backend.starter.dto.request;
 
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 @Setter
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder
 public class PasswordResetRequest {
     private String oldPassword;
     private String newPassword;
