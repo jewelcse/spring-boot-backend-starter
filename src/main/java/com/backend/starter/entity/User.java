@@ -45,6 +45,7 @@ public class User {
 
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @JoinColumn(name = "profile_id")
+    @ToString.Exclude
     private Profile profile;
 
 

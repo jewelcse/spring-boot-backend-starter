@@ -87,6 +87,8 @@ public class UserServiceImpl implements UserService {
         User user = new User();
         user.setEmail(request.getEmail());
         user.setUsername(randomUsername);
+        // generate password
+        // send email to the user with generated password
         user.setPassword(encoder.encode(randomUserPassword));
         user.setNonLocked(true);
         user.setEnabled(true);

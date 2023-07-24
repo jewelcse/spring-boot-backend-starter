@@ -47,7 +47,7 @@ public class SecurityConfig{
                 .exceptionHandling().authenticationEntryPoint(jwtAuthEntryPoint).and()
                 .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
 
-        http.authorizeHttpRequests().requestMatchers("/api/v1/sign-in").permitAll().anyRequest().authenticated();
+        http.authorizeHttpRequests().requestMatchers("/api/v1/sign-in","/api/v1/sign-up").permitAll().anyRequest().authenticated();
 
 
 

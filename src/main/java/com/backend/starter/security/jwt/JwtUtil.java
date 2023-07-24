@@ -16,7 +16,7 @@ import java.util.Map;
 @Component
 public class JwtUtil {
     private static final Logger logger = LoggerFactory.getLogger(JwtUtil.class);
-    public static final long TOKEN_EXPIRATION_TIME=24*60*60;
+    public static final long TOKEN_EXPIRATION_TIME=1000*60*60*24;
     private static final String APPLICATION_SECRET_KEY = "spring-boot-starter-backend";
 
     public String generateToken(Authentication authentication){
@@ -31,7 +31,7 @@ public class JwtUtil {
                 .setSubject(userDetails.getUsername())
                 .addClaims(claims)
                 .setIssuedAt(new Date())
-                .setExpiration(new Date((new Date()).getTime() + TOKEN_EXPIRATION_TIME))
+                .setExpiration(new Date(System.currentTimeMillis() + TOKEN_EXPIRATION_TIME))
                 .signWith(SignatureAlgorithm.HS512, APPLICATION_SECRET_KEY)
                 .compact();
 
