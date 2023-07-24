@@ -17,6 +17,16 @@ public class ApplicationExceptionHandler {
         return new ResponseEntity<>(new JsonExceptionResponse(exception.getMessage(), 404), HttpStatus.NOT_FOUND);
     }
 
+    @ExceptionHandler(value = UserAlreadyExistsException.class)
+    public ResponseEntity<JsonExceptionResponse> userAlreadyException(UserAlreadyExistsException exception) {
+        return new ResponseEntity<>(new JsonExceptionResponse(exception.getMessage(), 409), HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(value = LoginException.class)
+    public ResponseEntity<JsonExceptionResponse> userLoginException(LoginException exception) {
+        return new ResponseEntity<>(new JsonExceptionResponse(exception.getMessage(), 401), HttpStatus.NOT_FOUND);
+    }
+
     @ExceptionHandler(value = RoleNotFoundException.class)
     public ResponseEntity<JsonExceptionResponse> roleNotFoundException(RoleNotFoundException exception) {
         return new ResponseEntity<>(new JsonExceptionResponse(exception.getMessage(), 404), HttpStatus.NOT_FOUND);
@@ -34,6 +44,6 @@ public class ApplicationExceptionHandler {
     @NoArgsConstructor
     private static class JsonExceptionResponse{
         private String message;
-        private int status_code;
+        private int code;
     }
 }

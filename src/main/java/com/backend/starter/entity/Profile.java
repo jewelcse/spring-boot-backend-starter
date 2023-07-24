@@ -20,10 +20,10 @@ public class Profile {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     @NotBlank
-    @Size(max = 10)
+    @Size(max = 20)
     private String firstName;
     @NotBlank
-    @Size(max = 10)
+    @Size(max = 20)
     private String lastName;
 
     @Column(name = "phone_number")

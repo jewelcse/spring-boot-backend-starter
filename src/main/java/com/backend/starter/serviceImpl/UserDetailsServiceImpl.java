@@ -1,6 +1,7 @@
 package com.backend.starter.serviceImpl;
 
 import com.backend.starter.entity.User;
+import com.backend.starter.exception.UserNotFoundException;
 import com.backend.starter.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -15,7 +16,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         User user = userRepository.findByUsername(username)
-                .orElseThrow(()-> new UsernameNotFoundException("USER NOT FOUND!"));
+                .orElseThrow(()-> new UserNotFoundException("USER NOT FOUND!"));
         return UserDetailsImpl.build(user);
     }
 }

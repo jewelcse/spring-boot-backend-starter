@@ -1,9 +1,6 @@
 package com.backend.starter.dto.response;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.util.List;
 
@@ -11,16 +8,11 @@ import java.util.List;
 @NoArgsConstructor
 @Getter
 @Setter
+@Builder
 public class LoginResponse {
     private String token;
-    private String type = "Bearer";
+    private String type;
     private String username;
     private String email;
-    private List<String> roles;
-    public LoginResponse(String jwt, String username, String email, List<String> roles) {
-        this.token = jwt;
-        this.username = username;
-        this.email = email;
-        this.roles = roles;
-    }
+    private String role;
 }

@@ -1,25 +1,19 @@
 package com.backend.starter.dto.response;
 
 import com.backend.starter.entity.Gender;
-import com.backend.starter.entity.Role;
 import lombok.*;
 
 import java.util.Date;
-import java.util.Set;
 
+@Setter
+@Getter
 @AllArgsConstructor
 @NoArgsConstructor
-@Getter
-@Setter
 @Builder
-public class UserProfile {
+public class UpdateProfileResponse {
+    private Long id;
     private String firstName;
     private String lastName;
-    private String username;
-    private String email;
-    private boolean isEnabled;
-    private boolean isNonLocked;
-    private String role;
     private String phoneNumber;
     private Gender gender;
     private Date dateOfBirth;
@@ -30,4 +24,5 @@ public class UserProfile {
     private String state;
     private String country;
     private String zipCode;
+
 }
