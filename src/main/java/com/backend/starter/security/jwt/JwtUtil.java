@@ -26,6 +26,7 @@ public class JwtUtil {
         Map<String,Object> claims = new HashMap<String,Object>();
         claims.put("roles",userDetails.getAuthorities());
 
+        System.out.println("Line:29: JwtUtil class generateToken method");
         return Jwts
                 .builder()
                 .setSubject(userDetails.getUsername())
@@ -39,10 +40,14 @@ public class JwtUtil {
     }
 
     public String getUserNameFromJwtToken(String token) {
+        System.out.println("Line:43: JwtUtil class getUserNameFromJwtToken method");
+
         return Jwts.parser().setSigningKey(APPLICATION_SECRET_KEY).parseClaimsJws(token).getBody().getSubject();
     }
 
     public boolean validateJwtToken(String authToken) {
+        System.out.println("Line:29: JwtUtil class validateJwtToken method");
+
         try {
             Jwts.parser().setSigningKey(APPLICATION_SECRET_KEY).parseClaimsJws(authToken);
             return true;

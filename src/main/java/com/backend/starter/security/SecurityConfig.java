@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -42,16 +43,20 @@ public class SecurityConfig{
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
+        System.out.println("Line:45: SecurityConfig class filterChain method");
 
-        http.cors().and().csrf().disable()
-                .exceptionHandling().authenticationEntryPoint(jwtAuthEntryPoint).and()
-                .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
-
-        http.authorizeHttpRequests().requestMatchers("/api/v1/sign-in","/api/v1/sign-up").permitAll().anyRequest().authenticated();
-
-
-
-                http.addFilterBefore(authenticationTokenFilter, UsernamePasswordAuthenticationFilter.class);
+        http
+                .csrf().disable()
+                .authorizeHttpRequests()
+                .requestMatchers(HttpMethod.POST,"/api/v1/sign-in","/api/v1/sign-up").permitAll()
+                .anyRequest().authenticated()
+                .and()
+                .exceptionHandling().authenticationEntryPoint(jwtAuthEntryPoint)
+                .and()
+                .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                .and()
+                .addFilterBefore(authenticationTokenFilter,
+                        UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -69,10 +74,12 @@ public class SecurityConfig{
     @Bean
     public AuthenticationManager authenticationManager(HttpSecurity http)
             throws Exception {
+        System.out.println("Line:73: SecurityConfig class authenticationManager method");
+        // todo: by default DaoAuthenticationProvide is used
         return http.getSharedObject(AuthenticationManagerBuilder.class)
-                .userDetailsService(userDetailsService)
-                .passwordEncoder(passwordEncoder)
-                .and()
+                //.userDetailsService(userDetailsService)
+                //.passwordEncoder(passwordEncoder)
+                //.and()
                 .build();
     }
 
